@@ -27,10 +27,10 @@ class SkipGramBatcher:
         self.unk_text = unk_text
 
         # 1. Count all word occurencies.
-        counted_words = Counter(corpus).most_common(self.vocab_size)
+        self.counted_words = Counter(corpus).most_common(self.vocab_size)
         # create dict using dict comprehension
-        self.idx_to_word = {idx: word for idx, (word, count) in enumerate(counted_words)}
-        self.word_to_idx = {word: idx for idx, (word, count) in enumerate(counted_words)}
+        self.idx_to_word = {idx: word for idx, (word, count) in enumerate(self.counted_words)}
+        self.word_to_idx = {word: idx for idx, (word, count) in enumerate(self.counted_words)}
 
         # append '<UNK>' token to dictionaries
         last_idx = len(self.idx_to_word)
