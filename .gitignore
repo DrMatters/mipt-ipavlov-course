@@ -109,5 +109,5 @@ venv.bak/
 # pycharm
 .idea/
 
-# data folder
-data/
+# dataset
+assignments/embeddings_workshop_part1/data/text8
