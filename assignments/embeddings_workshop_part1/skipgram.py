@@ -2,6 +2,7 @@ from torch import nn
 from collections import Counter
 import gc
 import numpy as np
+from nltk.corpus import stopwords
 
 
 
@@ -21,11 +22,19 @@ class SkipGram(nn.Module):
 
 
 class SkipGramBatcher:
-    def __init__(self, corpus, vocab_size, window_size=2, batch_size=3, unk_text='<UNK>'):
+    def __init__(self, corpus, vocab_size, window_size=2,
+                 batch_size=3, unk_text='<UNK>', drop_stop_words=True,
+                 shuffle_batch=True):
         self.window_size = window_size
         self.vocab_size = vocab_size - 1
         self.batch_size = batch_size
         self.unk_text = unk_text
+        self.shuffle_batch = shuffle_batch
+
+        if drop_stop_words:
+            stop_words = set(stopwords.words('english'))
+            cleaned_corpus = [word for word in corpus if not word in stop_words]
+            corpus = cleaned_corpus
 
         # 1. Count all word occurencies.
         self.counted_words = Counter(corpus).most_common(self.vocab_size)
@@ -40,11 +49,11 @@ class SkipGramBatcher:
         indexed = self._words_to_indexes(corpus)
 
         # transform corpus from strings to indexes, to reduce memory usage
-        self.corpus_indexes = np.asarray(
-            indexed,
-            dtype=np.int32
-        )
+        self.corpus_indexes = np.asarray(indexed, dtype=np.int32)
+        self.batch_shuffled_sequence = np.arange(len(self.corpus_indexes))
 
+        # clean memory
+        corpus = []
         gc.collect()
 
     def _words_to_indexes(self, words):
@@ -64,14 +73,17 @@ class SkipGramBatcher:
         return words
 
     def __iter__(self):
+        if self.shuffle_batch:
+            np.random.shuffle(self.batch_shuffled_sequence)
         self.batch_start_pos = 0
+
         return self
 
-    def get_random_sample(self, center_id):
-        left_window = np.arange(max(0, center_id - self.window_size),
-                                center_id)
-        right_window = np.arange(center_id + 1,
-                                 min(center_id + self.window_size + 1, len(self.corpus_indexes)))
+    def get_random_sample(self, center_pos):
+        left_window = np.arange(max(0, center_pos - self.window_size),
+                                center_pos)
+        right_window = np.arange(center_pos + 1,
+                                 min(center_pos + self.window_size + 1, len(self.corpus_indexes)))
         window = np.concatenate((left_window, right_window))
         position = np.random.choice(window)
         return self.corpus_indexes[position]
@@ -80,10 +92,10 @@ class SkipGramBatcher:
         if self.batch_start_pos >= len(self.corpus_indexes):
             raise StopIteration
         else:
-            batch_position_in_corpus = np.arange(
+            batch_position_in_corpus = self.batch_shuffled_sequence[np.arange(
                 self.batch_start_pos,
-                min(self.batch_start_pos + self.batch_size, len(self.corpus_indexes))
-            )
+                min(self.batch_start_pos + self.batch_size, len(self.batch_shuffled_sequence))
+            )]
             x_batch = np.asarray(self.corpus_indexes[batch_position_in_corpus])
             # draw a word from window of a selected word
             y_batch = np.asarray([self.get_random_sample(selected_word_position)
