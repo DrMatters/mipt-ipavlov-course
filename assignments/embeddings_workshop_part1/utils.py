@@ -52,7 +52,11 @@ class EmbeddingsEval:
 
     def tokens_to_neighbours(self, tokens, n_neighbors=5):
         vectors = self.tokens_to_embeddings(tokens)
-        return self.neighbors.kneighbors(vectors, n_neighbors, return_distance=False)
+        return self.neighbors.kneighbors(vectors, n_neighbors + 1, return_distance=False)[1:]
+
+    def words_to_embeddings(self, words):
+        tokens = self.words_to_tokens(words)
+        return self.matrix[tokens, :]
 
     def tokens_to_embeddings(self, tokens):
         return self.matrix[tokens, :]
@@ -60,8 +64,8 @@ class EmbeddingsEval:
     def most_similar(self, positive=[], negative=[], n_neighbors=5):
         avg = np.zeros((1, self.matrix.shape[1]))
         if len(positive):
-            avg += np.mean(self.tokens_to_embeddings(self.words_to_tokens(positive)), axis=0)
+            avg += np.sum(self.tokens_to_embeddings(self.words_to_tokens(positive)), axis=0)
         if len(negative):
-            avg -= np.mean(self.tokens_to_embeddings(self.words_to_tokens(negative)), axis=0)
+            avg -= np.sum(self.tokens_to_embeddings(self.words_to_tokens(negative)), axis=0)
         similar = self.neighbors.kneighbors(avg, n_neighbors, return_distance=False)
         return self.tokens_to_words(similar[0])
