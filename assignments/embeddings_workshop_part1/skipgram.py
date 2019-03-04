@@ -3,6 +3,7 @@ from collections import Counter
 import gc
 import numpy as np
 from nltk.corpus import stopwords
+import nltk
 
 
 
@@ -32,6 +33,7 @@ class SkipGramBatcher:
         self.shuffle_batch = shuffle_batch
 
         if drop_stop_words:
+            nltk.download('stopwords')
             stop_words = set(stopwords.words('english'))
             cleaned_corpus = [word for word in corpus if not word in stop_words]
             corpus = cleaned_corpus
