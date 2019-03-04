@@ -4,6 +4,7 @@ import gc
 import numpy as np
 
 
+
 class SkipGram(nn.Module):
     def __init__(self, vocab_size, embedding_dim):
         super(SkipGram, self).__init__()
@@ -29,14 +30,14 @@ class SkipGramBatcher:
         # 1. Count all word occurencies.
         self.counted_words = Counter(corpus).most_common(self.vocab_size)
         # create dict using dict comprehension
-        self.idx_to_word = {idx: word for idx, (word, count) in enumerate(self.counted_words)}
-        self.word_to_idx = {word: idx for idx, (word, count) in enumerate(self.counted_words)}
+        self._idx_to_word = {idx: word for idx, (word, count) in enumerate(self.counted_words)}
+        self._word_to_idx = {word: idx for idx, (word, count) in enumerate(self.counted_words)}
 
         # append '<UNK>' token to dictionaries
-        last_idx = len(self.idx_to_word)
-        self.idx_to_word[last_idx] = self.unk_text
-        self.word_to_idx[self.unk_text] = last_idx
-        indexed = self.words_to_indexes(corpus)
+        last_idx = len(self._idx_to_word)
+        self._idx_to_word[last_idx] = self.unk_text
+        self._word_to_idx[self.unk_text] = last_idx
+        indexed = self._words_to_indexes(corpus)
 
         # transform corpus from strings to indexes, to reduce memory usage
         self.corpus_indexes = np.asarray(
@@ -46,13 +47,20 @@ class SkipGramBatcher:
 
         gc.collect()
 
-    def words_to_indexes(self, words):
-        unk_index = self.word_to_idx[self.unk_text]
-        idxes = [self.word_to_idx.get(word, unk_index) for word in words]
+    def _words_to_indexes(self, words):
+        unk_index = self._word_to_idx[self.unk_text]
+        idxes = [self._word_to_idx.get(word, unk_index) for word in words]
         return idxes
 
-    def indexes_to_words(self, indexes):
-        words = [self.idx_to_word[index] for index in indexes]
+    def words_to_tokens(self, words, error_on_unk=True):
+        unk_index = self._word_to_idx[self.unk_text]
+        idxes = [self._word_to_idx.get(word, unk_index) for word in words]
+        if error_on_unk and unk_index in idxes:
+            raise IndexError("Some words are not present in the dictionary")
+        return idxes
+
+    def tokens_to_words(self, tokens):
+        words = [self._idx_to_word[token] for token in tokens]
         return words
 
     def __iter__(self):
