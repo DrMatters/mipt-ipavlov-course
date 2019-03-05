@@ -20,6 +20,11 @@ class SkipGram(nn.Module):
         out = self.activation(out)
         return out
 
+    def get_intrinsic_matrix(self):
+        intrinsic = (self.embedding_layer.cpu().weight.data.numpy() +
+                     self.linear_layer.cpu().weight.data.numpy())
+        return intrinsic
+
 
 class SkipGramBatcher:
     def __init__(self, corpus, vocab_size, window_size=2,
