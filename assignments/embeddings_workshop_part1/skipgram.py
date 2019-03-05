@@ -1,4 +1,5 @@
 from torch import nn
+import torch
 from collections import Counter
 import gc
 import numpy as np
@@ -24,6 +25,29 @@ class SkipGram(nn.Module):
         intrinsic = (self.embedding_layer.cpu().weight.data.numpy() +
                      self.linear_layer.cpu().weight.data.numpy())
         return intrinsic
+
+
+class SingleMatrixSkipGram(nn.Module):
+    def __init__(self, vocab_size, embedding_dim):
+        torch.manual_seed(42)
+        super(SingleMatrixSkipGram, self).__init__()
+
+        self.emb_matrix = torch.randn(vocab_size, embedding_dim, requires_grad=True)
+        self.activation = nn.LogSoftmax(dim=1)
+
+    def forward(self, inputs):
+        """Forward propagate the single matrix model
+
+        inputs - takes a list of word tokens
+        """
+
+        selected = self.emb_matrix[inputs, :]
+        out = torch.mm(selected, torch.transpose(self.emb_matrix, 0, 1))
+        out = self.activation(out)
+        return out
+
+    def get_intrinsic_matrix(self):
+        return self.emb_matrix.cpu().detach().numpy()
 
 
 class SkipGramBatcher:
