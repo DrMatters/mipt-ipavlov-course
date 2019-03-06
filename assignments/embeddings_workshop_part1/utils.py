@@ -69,3 +69,12 @@ class EmbeddingsEval:
             avg -= np.sum(self.tokens_to_embeddings(self.words_to_tokens(negative)), axis=0)
         similar = self.neighbors.kneighbors(avg, n_neighbors, return_distance=False)
         return self.tokens_to_words(similar[0])
+
+
+def adjust_learning_rate(optimizer, factor=0.5):
+    """Sets the learning rate to the initial LR decayed by 10 every 30 epochs"""
+    for param_group in optimizer.param_groups:
+        old_lr = param_group['lr']
+
+    for param_group in optimizer.param_groups:
+        param_group['lr'] = old_lr * factor
