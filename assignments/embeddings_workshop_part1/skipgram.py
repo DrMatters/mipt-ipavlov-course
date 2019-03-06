@@ -46,6 +46,9 @@ class SingleMatrixSkipGram(nn.Module):
         out = self.activation(out)
         return out
 
+    def to(self, device):
+        self.emb_matrix.to(device)
+
     def get_intrinsic_matrix(self):
         return self.emb_matrix.cpu().detach().numpy()
 
