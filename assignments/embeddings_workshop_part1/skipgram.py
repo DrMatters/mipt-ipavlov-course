@@ -28,11 +28,11 @@ class SkipGram(nn.Module):
 
 
 class SingleMatrixSkipGram(nn.Module):
-    def __init__(self, vocab_size, embedding_dim):
+    def __init__(self, vocab_size, embedding_dim, device):
         torch.manual_seed(42)
         super(SingleMatrixSkipGram, self).__init__()
 
-        self.emb_matrix = torch.randn(vocab_size, embedding_dim, requires_grad=True)
+        self.emb_matrix = torch.randn(vocab_size, embedding_dim, requires_grad=True, device=device)
         self.activation = nn.LogSoftmax(dim=1)
 
     def forward(self, inputs):
@@ -47,7 +47,7 @@ class SingleMatrixSkipGram(nn.Module):
         return out
 
     def to(self, device):
-        self.emb_matrix.to(device)
+        self.emb_matrix = self.emb_matrix.to(device)
 
     def get_intrinsic_matrix(self):
         return self.emb_matrix.cpu().detach().numpy()
