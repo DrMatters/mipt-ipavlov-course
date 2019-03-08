@@ -68,8 +68,8 @@ class NegativeSamplingSkipGram(nn.Module):
         return -loss.mean()
 
     def get_intrinsic_matrix(self):
-        intrinsic = (self.input_emb.detach().cpu().weight.data.numpy() +
-                     self.output_emb.detach().cpu().weight.data.numpy())
+        intrinsic = (self.input_emb.cpu().weight.data.numpy() +
+                     self.output_emb.cpu().weight.data.numpy())
         return intrinsic
 
 
