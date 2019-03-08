@@ -73,7 +73,6 @@ class NegativeSamplingSkipGram(nn.Module):
         return intrinsic
 
 
-
 class SingleMatrixSkipGram(nn.Module):
     def __init__(self, vocab_size, embedding_dim, device):
         torch.manual_seed(42)
