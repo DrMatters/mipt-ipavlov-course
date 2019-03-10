@@ -1,6 +1,6 @@
 from torch import nn
 import torch
-from collections import Counter
+import collections
 import gc
 import numpy as np
 from nltk.corpus import stopwords
@@ -40,12 +40,7 @@ class NegativeSamplingSkipGram(nn.Module):
         torch.nn.init.xavier_uniform_(self.output_emb.weight)
 
     def forward(self, target, context, negative_word_batch):
-        """
-        :param target: [batch_size]
-        :param context: [batch_size]
-        :param negative_word_batch: [batch_size, neg_size]
-        :return:
-        """
+        """Forward propagate the model"""
 
         # u,v: [batch_size, emb_dim]
         v = self.input_emb(target)
@@ -95,6 +90,33 @@ class SingleMatrixSkipGram(nn.Module):
         return self.emb_matrix.cpu().detach().numpy()
 
 
+class TransposeTrickSkipGram(nn.Module):
+    def __init__(self, vocab_size, embedding_dim):
+        torch.manual_seed(42)
+        super(TransposeTrickSkipGram, self).__init__()
+
+        self.emb = nn.Embedding(vocab_size, embedding_dim)
+
+        torch.nn.init.xavier_uniform_(self.emb.weight)
+
+    def forward(self, batch):
+        """Forward propagate the model"""
+        S = self.emb(batch)
+        S = nn.functional.normalize(S, dim=2)
+        x = torch.zeros(1, dtype=torch.float)
+        for batch_idx in range(S.shape[0]):
+            w = S[batch_idx, :, :]
+            x += torch.mean(torch.mm(w, w.t()) - torch.ones(1, dtype=torch.float))  # torch.eye(S.shape[2]))
+
+        y = torch.zeros(1, dtype=torch.float)
+        for window_idx in range(S.shape[1]):
+            b = S[:, window_idx, :]
+            y += torch.mean(torch.mm(b, b.t()))
+
+        loss = -x + y
+        return loss
+
+
 class SkipGramBatcher:
     def __init__(self, corpus, vocab_size, window_size=3,
                  batch_size=128, drop_stop_words=True,
@@ -113,7 +135,7 @@ class SkipGramBatcher:
             corpus = cleaned_corpus
 
         # Count all word occurrences and select vocab_size most common
-        self._counted_words = Counter(corpus).most_common(self.vocab_size)
+        self._counted_words = collections.Counter(corpus).most_common(self.vocab_size)
         # create mappings using dict comprehension
         self._token_to_word = {idx: word for idx, (word, count) in enumerate(self._counted_words)}
         self._word_to_token = {word: idx for idx, (word, count) in enumerate(self._counted_words)}
@@ -135,7 +157,7 @@ class SkipGramBatcher:
         gc.collect()
 
     def words_to_tokens(self, words, error_on_unk=True):
-        """Function to transform iterable of words into list of tokens"""
+        """Transform iterable of words into list of tokens"""
 
         unk_index = self._word_to_token[self.unk_text]
         idxes = [self._word_to_token.get(word, unk_index) for word in words]
@@ -144,7 +166,7 @@ class SkipGramBatcher:
         return idxes
 
     def tokens_to_words(self, tokens):
-        """Function to transfrom iterable of tokens into list of words"""
+        """Transform iterable of tokens into list of words"""
 
         words = [self._token_to_word[token] for token in tokens]
         return words
@@ -175,12 +197,41 @@ class SkipGramBatcher:
                 self.batch_start_pos,
                 min(self.batch_start_pos + self.batch_size, len(self._batch_shuffled_sequence))
             )]
-            center_words_batch = np.asarray(self._corpus_tokens[batch_position_in_corpus])
+            center_words_batch = self._corpus_tokens[batch_position_in_corpus]
             # draw a word from window of a selected word
             context_words_batch = np.asarray([self._get_random_positive_sample(selected_word_position)
-                                  for selected_word_position in batch_position_in_corpus]).flatten()
+                                              for selected_word_position in batch_position_in_corpus]).flatten()
             self.batch_start_pos += self.batch_size
             return center_words_batch, context_words_batch
+
+
+class TransposeTrickBatcher(SkipGramBatcher):
+    def _get_full_window(self, center_pos):
+        """Get a window of words from batch including the center word"""
+        window_pos = np.arange(max(0, center_pos - self.window_size),
+                               min(center_pos + self.window_size + 1, len(self._corpus_tokens)))
+        window = self._corpus_tokens[window_pos]
+        return window
+
+    def __iter__(self):
+        self._batch_shuffled_sequence = np.arange(self.window_size, len(self._corpus_tokens) - self.window_size)
+        if self.shuffle_batch:
+            np.random.shuffle(self._batch_shuffled_sequence)
+        self.batch_start_pos = 0
+        return self
+
+    def __next__(self):
+        """Iterate over batches with each call"""
+        if self.batch_start_pos < len(self._batch_shuffled_sequence):
+            batch_position_in_corpus = self._batch_shuffled_sequence[np.arange(
+                self.batch_start_pos,
+                min(self.batch_start_pos + self.batch_size, len(self._batch_shuffled_sequence))
+            )]
+            batch = np.asarray([self._get_full_window(center_pos) for center_pos in batch_position_in_corpus])
+            self.batch_start_pos += self.batch_size
+            return batch
+        else:
+            raise StopIteration
 
 
 class NegativeSamplingBatcher(SkipGramBatcher):
