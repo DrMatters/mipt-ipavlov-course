@@ -105,7 +105,7 @@ class TransposeTrickSkipGram(nn.Module):
         S = nn.functional.normalize(S, dim=2)
         x = torch.sum(
             torch.mean(
-                torch.bmm(S, torch.transpose(S, 1, 2)) - torch.ones(1), (1, 2)
+                torch.bmm(S, torch.transpose(S, 1, 2)) - torch.cuda.FloatTensor(1).fill_(1), (1, 2)
             )
         )
 
@@ -129,6 +129,10 @@ class TransposeTrickSkipGram(nn.Module):
 
         loss = -x + y
         return loss
+    
+    def get_intrinsic_matrix(self):
+        intrinsic = self.emb.cpu().weight.data.numpy()
+        return intrinsic
 
 
 class SkipGramBatcher:
