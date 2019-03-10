@@ -97,8 +97,6 @@ class TransposeTrickSkipGram(nn.Module):
 
         self.emb = nn.Embedding(vocab_size, embedding_dim)
 
-        torch.nn.init.xavier_uniform_(self.emb.weight)
-
     def forward(self, batch):
         """Forward propagate the model"""
         S = self.emb(batch)
