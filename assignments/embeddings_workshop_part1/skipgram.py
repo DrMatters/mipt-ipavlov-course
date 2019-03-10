@@ -103,15 +103,29 @@ class TransposeTrickSkipGram(nn.Module):
         """Forward propagate the model"""
         S = self.emb(batch)
         S = nn.functional.normalize(S, dim=2)
-        x = torch.zeros(1, dtype=torch.float)
-        for batch_idx in range(S.shape[0]):
-            w = S[batch_idx, :, :]
-            x += torch.mean(torch.mm(w, w.t()) - torch.ones(1, dtype=torch.float))  # torch.eye(S.shape[2]))
+        x = torch.sum(
+            torch.mean(
+                torch.bmm(S, torch.transpose(S, 1, 2)) - torch.ones(1), (1, 2)
+            )
+        )
 
-        y = torch.zeros(1, dtype=torch.float)
-        for window_idx in range(S.shape[1]):
-            b = S[:, window_idx, :]
-            y += torch.mean(torch.mm(b, b.t()))
+        # To get a matrix with size [2 * window_size + 1; batch_size; batch_size]
+        # we use BMM, which performs a batch matrix-matrix product of matrices stored in batch1 and batch2
+        # and handles tensor sizes this way: (b * n * m) @ (b * m * p) -> (b * n * p).
+        # Elem1 will have the shape:
+        # [batch_size; 2 * window_size + 1; embedding_size] -> [2 * window_size + 1; batch_size; embedding_size]
+        # Elem2 will have the shape:
+        # [batch_size; 2 * window_size + 1; embedding_size] -> [2 * window_size + 1; batch_size; embedding_size] ->
+        # [2 * window_size + 1; embedding_size; batch_size]
+        # Thus, after applying BMM we will have desired dimensions
+        elem1 = torch.transpose(S, 0, 1)
+        elem2 = torch.transpose(S, 0, 1)
+        elem2 = torch.transpose(elem2, 1, 2)
+        y = torch.sum(
+            torch.mean(
+                torch.bmm(elem1, elem2), (1, 2)
+            )
+        )
 
         loss = -x + y
         return loss
