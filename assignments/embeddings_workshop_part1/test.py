@@ -11,10 +11,10 @@ WINDOW_SIZE = 3
 
 
 text = []
-with open('./data/text8', 'r') as text8:
-    text = text8.read().split()
-# text = ['first', 'used', 'against', 'early', 'working', 'class', 'radicals',
-#         'including', 'other', 'another', 'why', 'going', 'because', 'inner', 'product']
+# with open('./data/text8', 'r') as text8:
+#     text = text8.read().split()
+text = ['first', 'used', 'against', 'early', 'working', 'class', 'radicals',
+        'including', 'other', 'another', 'why', 'going', 'because', 'inner', 'product']
 batcher = skipgram.TransposeTrickBatcher(text, VOCAB_SIZE, batch_size=BATCH_SIZE,
                                          shuffle_batch=True, window_size=WINDOW_SIZE,
                                          drop_stop_words=True)
@@ -34,15 +34,17 @@ for epoch in range(EPOCH_NUM):
                 tensor_batch = torch.from_numpy(batch).type(torch.long)
                 # Send tensors to the selected device
 
-                model.zero_grad()
+                optimizer.zero_grad()
                 loss = model(tensor_batch)
+                loss_vec = model.vectorized_forward(tensor_batch)
+                print(f'Loss: {loss.item():.2f}. Vectorized loss {loss_vec.item():.2f}')
                 loss.backward()
                 optimizer.step()
                 cumulative_loss += loss.item()
 
                 # if i % LOGS_PERIOD == 0:
-                print(f'loss on {(i * BATCH_SIZE / corpus_size) * 100:.1f}%:' + \
-                      f'{(cumulative_loss) :.7f}')
+                # print(f'loss on {(i * BATCH_SIZE / corpus_size) * 100:.1f}%:' + \
+                #       f'{(cumulative_loss) :.7f}')
                 loss_history.append(loss.data.cpu().item())
                 cumulative_loss = 0
 

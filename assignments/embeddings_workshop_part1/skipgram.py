@@ -103,9 +103,27 @@ class TransposeTrickSkipGram(nn.Module):
         """Forward propagate the model"""
         S = self.emb(batch)
         S = nn.functional.normalize(S, dim=2)
+        x = torch.zeros(1, dtype=torch.float)
+        for batch_idx in range(S.shape[0]):
+            w = S[batch_idx, :, :]
+            x += torch.mean(torch.mm(w, w.t()) - torch.ones(1, dtype=torch.float))  # torch.eye(S.shape[2]))
+
+        y = torch.zeros(1, dtype=torch.float)
+        for window_idx in range(S.shape[1]):
+            b = S[:, window_idx, :]
+            y += torch.mean(torch.mm(b, b.t()))
+
+        loss = -x + y
+        return loss
+
+    def vectorized_forward(self, batch):
+        """Forward propagate the model"""
+        S = self.emb(batch)
+        S = nn.functional.normalize(S, dim=2)
         x = torch.sum(
             torch.mean(
-                torch.bmm(S, torch.transpose(S, 1, 2)) - torch.cuda.FloatTensor(1).fill_(1), (1, 2)
+                torch.bmm(S, torch.transpose(S, 1, 2)) - torch.FloatTensor(1).fill_(1),
+                (1, 2)
             )
         )
 
@@ -129,11 +147,6 @@ class TransposeTrickSkipGram(nn.Module):
 
         loss = -x + y
         return loss
-    
-    def get_intrinsic_matrix(self):
-        intrinsic = self.emb.cpu().weight.data.numpy()
-        return intrinsic
-
 
 class SkipGramBatcher:
     def __init__(self, corpus, vocab_size, window_size=3,
